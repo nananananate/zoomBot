@@ -30,6 +30,8 @@ class ZoomWrapper:
         encodedString =f"{clientId}:{clientSecret}".encode("ascii")
         self.clientEncoded = base64.b64encode(encodedString).decode("utf-8")
 
+        self.refreshAccessToken()
+
 
 
     def authenticate(self, request):
@@ -43,8 +45,19 @@ class ZoomWrapper:
         response = requests.post(self.oauthUrl,
                     params = params, headers = headers)
         self.credentials.update(json.loads(response.text))
-        #print(response.text)
-        #print(self.credentials)
+        self.__saveCredentials()
+
+
+    def refreshAccessToken(self):
+        refreshToken = self.credentials["refresh_token"]
+
+        params = {"grant_type": "refresh_token", "refresh_token": refreshToken}
+        headers = {"Authorization": "Basic " + self.clientEncoded}
+
+        response = requests.post(self.oauthUrl,
+                    params = params, headers = headers)
+
+        self.credentials.update(json.loads(response.text))
         self.__saveCredentials()
 
 
@@ -52,46 +65,38 @@ class ZoomWrapper:
         headers = {"Authorization": "Bearer " + self.credentials["access_token"]}
         response = requests.get(self.usersUrl, headers=headers)
         responseDict = json.loads(response.text)
-        #print(responseDict)
         self.users = responseDict["users"]
 
 
     def getChannels(self):
         url = "https://api.zoom.us/v2/chat/users/me/channels"
+        params = {"page_size": "40"}
         headers = {"Authorization": "Bearer " + self.credentials["access_token"]}
-        response = requests.get(url, headers = headers)
-        print("got channels")
-        print(response.text)
+        response = requests.get(url, headers = headers, params = params)
+        return json.loads(response.text)
 
     def getChannel(self, channelId: str):
-        channelId = "292922e53c6e4e328e79d2fc9a918653"
         url = f"https://api.zoom.us/v2/chat/channels/{channelId}"
         headers = {"Authorization": "Bearer " + self.credentials["access_token"]}
         response = requests.get(url, headers = headers)
-        print("channel")
-        print(response.text)
+        return json.loads(response.text)
 
 
     def sendMessage(self, channelId: str, message: str):
-        message = "YEET this is the bot's message"
-
         headers = {"Authorization": "Bearer " + self.credentials["access_token"],
                     "content-type": "application/json"}
-
         params = {"to_channel": channelId}
         data = {"message": message, "to_channel": channelId}
+
         response = requests.post(self.messagesUrl, headers = headers, data= json.dumps(data))
 
-        print(response.text)
+        return json.loads(response.text)
 
 
     def getChannelMessages(self, channelId: str) -> dict:
-
         headers = {"Authorization": "Bearer " + self.credentials["access_token"],
                     "content-type": "application/json"}
-
-        params = {"to_channel": channelId}
-
+        params = {"to_channel": channelId, "page_size": "40"}
 
         response = requests.get(self.messagesUrl, headers = headers, params = params)
 

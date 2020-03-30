@@ -19,13 +19,84 @@ class ZoomBot:
 
     def __init__(self):
         self.waitTime = 5
+        self.logFileName = "logs.txt"
         self.zoom = ZoomWrapper()
+
+        watchChannelNames = ["teest"]
+        self.watchChannels = self.initWatchChannels(watchChannelNames)
+
+        # for multithreading
         self.initBackgroundLoop()
         atexit.register(self.interrupt)
 
 
 
-    # multithreading stuff
+    def getChannel(self, name: str):
+        ''' Search channels by name
+        '''
+        for channel in self.zoom.getChannels()["channels"]:
+            if channel["name"] == name:
+                return channel
+
+        # if none return empty dict
+        return dict()
+
+
+
+    def initWatchChannels(self, names):
+        ''' Initialize the list of channels to read from
+        '''
+        result = []
+
+        for name in names:
+            channel = self.getChannel(name)
+
+            # ensure channel exists
+            if (len(channel) > 0):
+                result.append(channel)
+
+        return result
+
+
+    def getMessages(self):
+        messages = []
+        for channel in self.watchChannels:
+            channelMessages = self.zoom.getChannelMessages(channel["id"])["messages"]
+
+            for message in channelMessages:
+                if self.isNewMessage(message):
+                    message["channel_id"] = channel["id"]
+                    self.logMessage(message)
+                    messages.append(message)
+
+        return messages
+
+
+
+    def logMessage(self, message: dict):
+        with open(self.logFileName, "a+") as logFile:
+            logFile.write(message["id"] + "\n")
+            logFile.close()
+
+    def isNewMessage(self, message: dict):
+        with open(self.logFileName, "r") as logFile:
+            return (message["id"] not in logFile.read())
+
+
+    def processMessages(self, messages: list):
+
+        for message in messages:
+            self.messageHandler(message)
+
+
+    def messageHandler(self, message:dict):
+        if message["message"].startswith("$echo"):
+            contents = message["message"][5:].strip()
+            self.zoom.sendMessage(message["channel_id"], contents)
+
+
+
+    ### multithreading stuff ###
 
     def interrupt(self):
         global backgroundThread
@@ -38,7 +109,10 @@ class ZoomBot:
         global backgroundThread
 
         with dataLock:
-            print("test")
+            messages = self.getMessages()
+
+            print(messages)
+            self.processMessages(messages)
 
         backgroundThread = threading.Timer(self.waitTime, self.backgroundLoop, ())
         backgroundThread.start()
@@ -46,16 +120,9 @@ class ZoomBot:
 
     def initBackgroundLoop(self):
         global backgroundThread
-        print("starting loop")
+
         backgroundThread = threading.Timer(self.waitTime, self.backgroundLoop, ())
         backgroundThread.start()
-
-
-
-
-
-
-
 
 
 
@@ -65,13 +132,8 @@ class ZoomBot:
 def webhook_read():
     global zoomBot
 
-
     if (request.args.get("code") != None):
-
         zoomBot.zoom.authenticate(request)
-        # zoomBot.getUsers()
-        #zoomBot.getMessages("292922e53c6e4e328e79d2fc9a918653")
-
 
     else:
         try:
@@ -84,6 +146,7 @@ def webhook_read():
     return "200"
 
 
+
 @app.route('/', methods=["POST"])
 def webhook_action():
     print("POST")
@@ -93,33 +156,13 @@ def webhook_action():
     return "200"
 
 
+
 def main():
-    print("started")
     app.run(port = 5000)
-
-
-
-def backgroundLoop():
-    global zoomBot
-    count = 0
-    while count < 2:
-        try:
-            time.sleep(5)
-        except:
-            print("failed")
-
-        count += 1
-
-
-
-
-
 
 
 
 if __name__ == '__main__':
 
     zoomBot = ZoomBot()
-    #thread = threading.Thread(target = backgroundLoop)
-    #thread.start()
     main()
