@@ -22,8 +22,8 @@ class ZoomWrapper:
         self.me = "rRMd0H_aQ9yf2mGhVEXM5Q"
 
         self.credentials["redirectUri"] = "http://a86e7e32.ngrok.io"
-        self.credentials["clientId"] = "m1uvYOTfSd2ADAO4b5gtuQ"#"vQAVi0P7Q3WXIxE_ib8Aeg"
-        self.credentials["clientSecret"] = "UZmsMiBmcw9QxwQs3Djslyg9iIU61tfO"#"FAH3BrDjhPcoq4VXFA5hE2JKYanrgfaM"
+        self.credentials["clientId"] = ""
+        self.credentials["clientSecret"] = ""
 
         clientId = self.credentials["clientId"]
         clientSecret = self.credentials["clientSecret"]
